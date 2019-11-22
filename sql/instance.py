@@ -6,6 +6,7 @@ import simplejson as json
 from django.conf import settings
 from django.contrib.auth.decorators import permission_required
 from django.http import HttpResponse
+from django.views.decorators.cache import cache_page
 
 from common.config import SysConfig
 from common.utils.extend_json_encoder import ExtendJSONEncoder
@@ -14,7 +15,7 @@ from sql.plugins.schemasync import SchemaSync
 from .models import Instance, ParamTemplate, ParamHistory
 
 
-@permission_required('sql.menu_instance', raise_exception=True)
+@permission_required('sql.menu_instance_list', raise_exception=True)
 def lists(request):
     """获取实例列表"""
     limit = int(request.POST.get('limit'))
@@ -51,34 +52,6 @@ def lists(request):
     rows = [row for row in instances]
 
     result = {"total": count, "rows": rows}
-    return HttpResponse(json.dumps(result, cls=ExtendJSONEncoder, bigint_as_string=True),
-                        content_type='application/json')
-
-
-@permission_required('sql.menu_instance', raise_exception=True)
-def users(request):
-    """获取实例用户列表"""
-    instance_id = request.POST.get('instance_id')
-    try:
-        instance = Instance.objects.get(id=instance_id)
-    except Instance.DoesNotExist:
-        result = {'status': 1, 'msg': '实例不存在', 'data': []}
-        return HttpResponse(json.dumps(result), content_type='application/json')
-
-    sql_get_user = '''select concat("\'", user, "\'", '@', "\'", host,"\'") as query from mysql.user;'''
-    query_engine = get_engine(instance=instance)
-    db_users = query_engine.query('mysql', sql_get_user).rows
-    # 获取用户权限信息
-    data = []
-    for db_user in db_users:
-        user_info = {}
-        user_priv = query_engine.query('mysql', 'show grants for {};'.format(db_user[0]), close_conn=False).rows
-        user_info['user'] = db_user[0]
-        user_info['privileges'] = user_priv
-        data.append(user_info)
-    # 关闭连接
-    query_engine.close()
-    result = {'status': 0, 'msg': 'ok', 'rows': data}
     return HttpResponse(json.dumps(result, cls=ExtendJSONEncoder, bigint_as_string=True),
                         content_type='application/json')
 
@@ -226,18 +199,19 @@ def schemasync(request):
     # 准备参数
     tag = int(time.time())
     output_directory = os.path.join(settings.BASE_DIR, 'downloads/schemasync/')
+    os.makedirs(output_directory, exist_ok=True)
     args = {
         "sync-auto-inc": sync_auto_inc,
         "sync-comments": sync_comments,
         "tag": tag,
         "output-directory": output_directory,
         "source": r"mysql://{user}:'{pwd}'@{host}:{port}/{database}".format(user=instance_info.user,
-                                                                            pwd=instance_info.raw_password,
+                                                                            pwd=instance_info.password,
                                                                             host=instance_info.host,
                                                                             port=instance_info.port,
                                                                             database=db_name),
         "target": r"mysql://{user}:'{pwd}'@{host}:{port}/{database}".format(user=target_instance_info.user,
-                                                                            pwd=target_instance_info.raw_password,
+                                                                            pwd=target_instance_info.password,
                                                                             host=target_instance_info.host,
                                                                             port=target_instance_info.port,
                                                                             database=target_db_name)
@@ -277,23 +251,28 @@ def schemasync(request):
     return HttpResponse(json.dumps(result), content_type='application/json')
 
 
+@cache_page(60 * 5)
 def instance_resource(request):
     """
     获取实例内的资源信息，database、schema、table、column
     :param request:
     :return:
     """
-    instance_name = request.POST.get('instance_name')
-    db_name = request.POST.get('db_name')
-    schema_name = request.POST.get('schema_name')
-    tb_name = request.POST.get('tb_name')
+    instance_id = request.GET.get('instance_id')
+    instance_name = request.GET.get('instance_name')
+    db_name = request.GET.get('db_name')
+    schema_name = request.GET.get('schema_name')
+    tb_name = request.GET.get('tb_name')
 
-    resource_type = request.POST.get('resource_type')
-    try:
-        instance = Instance.objects.get(instance_name=instance_name)
-    except Instance.DoesNotExist:
-        result = {'status': 1, 'msg': '实例不存在', 'data': []}
-        return HttpResponse(json.dumps(result), content_type='application/json')
+    resource_type = request.GET.get('resource_type')
+    if instance_id:
+        instance = Instance.objects.get(id=instance_id)
+    else:
+        try:
+            instance = Instance.objects.get(instance_name=instance_name)
+        except Instance.DoesNotExist:
+            result = {'status': 1, 'msg': '实例不存在', 'data': []}
+            return HttpResponse(json.dumps(result), content_type='application/json')
     result = {'status': 0, 'msg': 'ok', 'data': []}
 
     try:
@@ -349,4 +328,7 @@ def describe(request):
     except Exception as msg:
         result['status'] = 1
         result['msg'] = str(msg)
+    if result['data']['error']:
+        result['status'] = 1
+        result['msg'] = result['data']['error']
     return HttpResponse(json.dumps(result), content_type='application/json')

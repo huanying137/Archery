@@ -53,6 +53,8 @@
                                     <optgroup id="optgroup-redis" label="Redis"></optgroup>
                                     <optgroup id="optgroup-pgsql" label="PgSQL"></optgroup>
                                     <optgroup id="optgroup-oracle" label="Oracle"></optgroup>
+                                    <optgroup id="optgroup-mongo" label="Mongo"></optgroup>
+                                    <optgroup id="optgroup-phoenix" label="Phoenix"></optgroup>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -88,15 +90,15 @@
                             </div>
                             <!--增加通知人-->
                             <div class="form-group">
-                                <select id="notify_users" name="notify_users"
+                                <select id="cc_users" name="cc_users"
                                         class="selectpicker show-tick form-control bs-select-hidden "
                                         multiple="multiple"
                                         data-name="通知人"
                                         data-live-search="true"
                                         data-selected-text-format="count > 2"
-                                        data-none-selected-text="可选择通知人(邮件抄送)">
+                                        data-none-selected-text="可选择通知人(仅申请通知)">
                                     {% for user_info in active_user %}
-                                        <option value="{{ user_info.username }}">{{ user_info.display }}</option>
+                                        <option value="{{ user_info.username }}">{{ user_info.display }}({{ user_info.username }})</option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -254,7 +256,7 @@
             $("#div-backup").show();
             //将数据通过ajax提交给获取db_name
             $.ajax({
-                type: "post",
+                type: "get",
                 url: "/instance/instance_resource/",
                 dataType: "json",
                 data: {
@@ -296,7 +298,7 @@
         $("#db_name").change(function () {
             //将数据通过ajax提交给获取db_name
             $.ajax({
-                type: "post",
+                type: "get",
                 url: "/instance/instance_resource/",
                 dataType: "json",
                 data: {
@@ -576,9 +578,11 @@
                     if (data.status === 0) {
                         var result = data['data'];
                         $("#optgroup-mysql").empty();
+                        $("#optgroup-oracle").empty();
                         $("#optgroup-mssql").empty();
                         $("#optgroup-redis").empty();
                         $("#optgroup-pgsql").empty();
+                        $("#optgroup-phoenix").empty();
                         for (var i = 0; i < result.length; i++) {
                             var instance = "<option value=\"" + result[i]['instance_name'] + "\">" + result[i]['instance_name'] + "</option>";
                             if (result[i]['db_type'] === 'mysql') {
@@ -591,6 +595,10 @@
                                 $("#optgroup-pgsql").append(instance);
                             } else if (result[i]['db_type'] === 'oracle') {
                                 $("#optgroup-oracle").append(instance);
+                            } else if (result[i]['db_type'] === 'mongo') {
+                                $("#optgroup-mongo").append(instance);
+                            }  else if (result[i]['db_type'] === 'phoenix') {
+                                $("#optgroup-phoenix").append(instance);
                             }
                         }
                         $('#instance_name').selectpicker('render');

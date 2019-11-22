@@ -2,6 +2,7 @@
 
 # <a href="http://139.199.0.191/" target="_blank" rel="noopener noreferrer">Archery</a> 
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/94e8587e507f4565a1ea5ea21fd94c32)](https://app.codacy.com/app/hhyo/Archery?utm_source=github.com&utm_medium=referral&utm_content=hhyo/Archery&utm_campaign=Badge_Grade_Dashboard)
 [![Build Status](https://travis-ci.org/hhyo/Archery.svg?branch=master)](https://travis-ci.org/hhyo/Archery)
 [![Release](https://img.shields.io/github/release/hhyo/archery.svg)](https://github.com/hhyo/archery/releases/)
 [![codecov](https://codecov.io/gh/hhyo/archery/branch/master/graph/badge.svg)](https://codecov.io/gh/hhyo/archery)
@@ -19,7 +20,7 @@
 
 介绍
 ============
-Archery是[archer](https://github.com/jly8866/archer)的分支项目，定位于SQL审核查询平台，附加部分DB运维功能，所有功能都兼容手机端操作，[功能列表](https://github.com/hhyo/Archery/wiki/功能列表)
+Archery是[archer](https://github.com/jly8866/archer)的分支项目，定位于SQL审核查询平台，旨在提升DBA的工作效率，支持主流数据库的SQL上线和查询，同时支持丰富的MySQL运维功能，所有功能都兼容手机端操作，查看[功能和支持列表](https://github.com/hhyo/Archery/wiki/功能列表)
 
 开发计划
 ==============
@@ -36,10 +37,10 @@ https://github.com/hhyo/archery/projects
 
 ### Docker
 #### 准备运行配置
-具体可参考：https://github.com/hhyo/Archery/tree/master/src/docker-compose
+具体可参考：https://github.com/hhyo/Archery/tree/master/src/docker-compose    
 
 #### 启动
-进入docker-compose文件夹
+下载 [Releases](https://github.com/hhyo/archery/releases/)文件，解压后进入docker-compose文件夹
 
 ```bash
 #启动
@@ -113,7 +114,6 @@ python manage.py test -v 3
 ### 功能依赖
 - 可视化 [pyecharts](https://github.com/pyecharts/pyecharts)
 - MySQL审核/执行/备份 [goInception](https://github.com/hanchuanchuan/goInception)|[inception](https://github.com/hhyo/inception)
-- 数据库审核 [Themis](https://github.com/CreditEaseDBA/Themis)
 - MySQL索引优化 [SQLAdvisor](https://github.com/Meituan-Dianping/SQLAdvisor)
 - SQL优化/压缩 [SOAR](https://github.com/XiaoMi/soar)
 - Binlog2SQL [binlog2sql](https://github.com/danfengcao/binlog2sql)
@@ -122,6 +122,7 @@ python manage.py test -v 3
 - 大表DDL [gh-ost](https://github.com/github/gh-ost)|[pt-online-schema-change](https://www.percona.com/doc/percona-toolkit/3.0/pt-online-schema-change.html)
 - MyBatis XML解析 [mybatis-mapper2sql](https://github.com/hhyo/mybatis-mapper2sql)
 - RDS管理 [aliyun-openapi-python-sdk](https://github.com/aliyun/aliyun-openapi-python-sdk)
+- 数据加密 [django-mirage-field](https://github.com/luojilab/django-mirage-field)
 
 贡献者
 ===============
@@ -129,7 +130,7 @@ python manage.py test -v 3
 
 贡献代码
 ===============
-可查阅主页的开发计划以及依赖清单，在对应issues中回复，或者直接提交PR  
+可查阅主页的开发计划以及依赖清单，在对应issues中回复认领，或者直接提交PR，感谢你对Archery的贡献  
 贡献包括但不限于以下方式：
 - Wiki文档（开放编辑）
 - Bug修复
@@ -139,4 +140,4 @@ python manage.py test -v 3
 
 问题反馈
 ===============
-[Issues](https://github.com/hhyo/archery/issues)是本项目唯一的沟通渠道，如果在使用过程中遇到问题，请先查阅文档，如果仍无法解决，请查看相关日志，保存截图信息，给我们提交[Issues](https://github.com/hhyo/archery/issues)，请按照模板提供相关信息，否则会被直接关闭，感谢理解
+[Issues](https://github.com/hhyo/archery/issues)是本项目唯一的沟通渠道，如果在使用过程中遇到问题，请先查阅文档，如果仍无法解决，请查看相关日志，保存截图信息，给我们提交[Issue](https://github.com/hhyo/archery/issues)，请按照模板提供相关信息，否则会被直接关闭，感谢理解

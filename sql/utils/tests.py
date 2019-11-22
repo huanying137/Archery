@@ -1,8 +1,8 @@
 # -*- coding: UTF-8 -*-
 """ 
-@author: hhyo 
-@license: Apache Licence 
-@file: tests.py 
+@author: hhyo
+@license: Apache Licence
+@file: tests.py
 @time: 2019/03/14
 """
 import datetime
@@ -20,7 +20,7 @@ from common.utils.const import WorkflowDict
 from sql.engines.models import ReviewResult, ReviewSet
 from sql.models import SqlWorkflow, SqlWorkflowContent, Instance, ResourceGroup, ResourceGroup2User, \
     ResourceGroup2Instance, WorkflowLog, WorkflowAudit, WorkflowAuditDetail, WorkflowAuditSetting, \
-    QueryPrivilegesApply, DataMaskingRules, DataMaskingColumns
+    QueryPrivilegesApply, DataMaskingRules, DataMaskingColumns, InstanceTag, InstanceTagRelations
 from sql.utils.resource_group import user_groups, user_instances, auth_group_users
 from sql.utils.sql_review import is_auto_review, can_execute, can_timingtask, can_cancel, on_correct_time_period
 from sql.utils.sql_utils import *
@@ -81,16 +81,6 @@ class TestSQLUtils(TestCase):
         """
         sql = "select * from user.users a join logs.log b on a.id=b.id;"
         self.assertEqual(extract_tables(sql), [{'name': 'users', 'schema': 'user'}, {'name': 'log', 'schema': 'logs'}])
-
-    def test_extract_tables_by_moz(self):
-        """
-        测试表解析
-        :return:
-        """
-        sql = "select * from user.users a join logs.log b on a.id=b.id where a.id in (select id from logs.log);"
-        self.assertEqual(extract_tables(sql, _type='select'),
-                         [{'name': 'users', 'schema': 'user'}, {'name': 'log', 'schema': 'logs'},
-                          {'name': 'log', 'schema': 'logs'}])
 
     def test_generate_sql_from_sql(self):
         """
@@ -231,10 +221,15 @@ class TestSQLReview(TestCase):
         self.sys_config.set('auto_review', 'true')
         self.sys_config.set('auto_review_regex', '^drop')  # drop语句需要审批
         self.sys_config.set('auto_review_max_update_rows', '2')  # update影响行数大于2需要审批
+        self.sys_config.set('auto_review_tag', 'GA')  # 仅GA开启自动审批
         self.sys_config.get_all_config()
         # 修改工单为update
         self.wfc1.sql_content = "update table users set email='';"
         self.wfc1.save(update_fields=('sql_content',))
+        # 修改工单实例标签
+        tag = InstanceTag.objects.get_or_create(tag_code='GA', defaults={'tag_name': '生产环境', 'active': True})
+        InstanceTagRelations.objects.get_or_create(instance=self.wf1.instance,
+                                                   defaults={'instance_tag': tag[0], 'active': True})
         # mock返回值，update影响行数=3
         _execute_check.return_value.to_dict.return_value = [
             {"id": 1, "stage": "CHECKED", "errlevel": 0, "stagestatus": "Audit completed", "errormessage": "None",
@@ -473,7 +468,7 @@ class TestExecuteSql(TestCase):
     def setUp(self):
         self.ins = Instance.objects.create(instance_name='some_ins', type='slave', db_type='mysql',
                                            host='some_host',
-                                           port=3306, user='ins_user', password='some_pass')
+                                           port=3306, user='ins_user', password='some_str')
         self.wf = SqlWorkflow.objects.create(
             workflow_name='some_name',
             group_id=1,
@@ -558,9 +553,7 @@ class TestExecuteSql(TestCase):
         self.task_result.args = [self.wf.id]
         self.task_result.success = False
         self.task_result.stopped = datetime.datetime.now()
-        self.task_result.result.json.return_value = json.dumps([{'id': 1, 'sql': 'some_content'}])
-        self.task_result.result.warning = ''
-        self.task_result.result.error = ''
+        self.task_result.result = '执行异常'
         _audit.detail_by_workflow_id.return_value.audit_id = 123
         _audit.add_log.return_value = 'any thing'
         execute_callback(self.task_result)
@@ -583,9 +576,7 @@ class TestExecuteSql(TestCase):
         self.task_result.args = [self.wf.id]
         self.task_result.success = False
         self.task_result.stopped = datetime.datetime.now()
-        self.task_result.result.json.return_value = json.dumps([{'id': 1, 'sql': 'some_content'}])
-        self.task_result.result.warning = ''
-        self.task_result.result.error = ''
+        self.task_result.result = '执行异常'
         _audit.detail_by_workflow_id.return_value.audit_id = 123
         _audit.add_log.return_value = 'any thing'
         # 删除execute_result
@@ -640,7 +631,7 @@ class TestAudit(TestCase):
         tomorrow = datetime.datetime.today() + datetime.timedelta(days=1)
         self.ins = Instance.objects.create(instance_name='some_ins', type='slave', db_type='mysql',
                                            host='some_host',
-                                           port=3306, user='ins_user', password='some_pass')
+                                           port=3306, user='ins_user', password='some_str')
         self.wf = SqlWorkflow.objects.create(
             workflow_name='some_name',
             group_id=1,
@@ -1015,7 +1006,7 @@ class TestAudit(TestCase):
     @patch('sql.utils.workflow_audit.Audit.detail_by_workflow_id')
     def test_can_review_no_prem(self, _detail_by_workflow_id, _auth_group_users):
         """测试判断用户当前是否是可审核，权限组不存在"""
-        aug = Group.objects.create(name='auth_group')
+        Group.objects.create(name='auth_group')
         _detail_by_workflow_id.side_effect = RuntimeError()
         _auth_group_users.return_value.filter.exists = True
         self.audit.workflow_type = WorkflowDict.workflow_type['sqlreview']
@@ -1059,7 +1050,7 @@ class TestDataMasking(TestCase):
         self.user = User.objects.create(username='user')
         self.ins = Instance.objects.create(instance_name='some_ins', type='slave', db_type='mysql',
                                            host='some_host',
-                                           port=3306, user='ins_user', password='some_pass')
+                                           port=3306, user='ins_user', password='some_str')
         self.sys_config = SysConfig()
         self.wf1 = SqlWorkflow.objects.create(
             workflow_name='workflow_name',
@@ -1251,6 +1242,19 @@ class TestDataMasking(TestCase):
         self.assertEqual(r.status, 1)
         self.assertEqual(r.error, '不支持该查询语句脱敏！请联系管理员')
 
+    def test_data_masking_does_not_support_keyword(self, ):
+        """不支持的关键字"""
+        self.sys_config.set('query_check', 'true')
+        self.sys_config.get_all_config()
+
+        sqls = ["select id from test union select email from activity_email_all_in_one;",
+                "select id from test union all select email from activity_email_all_in_one;"]
+        for sql in sqls:
+            query_result = ReviewSet(full_sql=sql)
+            r = data_masking(self.ins, 'archery', sql, query_result)
+            self.assertEqual(r.status, 1)
+            self.assertEqual(r.error, '不支持该查询语句脱敏！请联系管理员')
+
     def test_brute_mask(self):
         sql = """select * from users;"""
         rows = (('18888888888',), ('18888888889',), ('18888888810',))
@@ -1267,10 +1271,10 @@ class TestResourceGroup(TestCase):
         self.su = User.objects.create(username='s_user', display='中文显示', is_active=True, is_superuser=True)
         self.ins1 = Instance.objects.create(instance_name='some_ins1', type='slave', db_type='mysql',
                                             host='some_host',
-                                            port=3306, user='ins_user', password='some_pass')
+                                            port=3306, user='ins_user', password='some_str')
         self.ins2 = Instance.objects.create(instance_name='some_ins2', type='slave', db_type='mysql',
                                             host='some_host',
-                                            port=3306, user='ins_user', password='some_pass')
+                                            port=3306, user='ins_user', password='some_str')
         self.rgp1 = ResourceGroup.objects.create(group_name='group1')
         self.rgp2 = ResourceGroup.objects.create(group_name='group2')
         self.agp = Group.objects.create(name='auth_group')

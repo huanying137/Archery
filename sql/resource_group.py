@@ -9,7 +9,7 @@ from django.db.models import F, Value, IntegerField
 from django.http import HttpResponse
 from common.utils.extend_json_encoder import ExtendJSONEncoder
 from common.utils.permission import superuser_required
-from sql.models import ResourceGroup, ResourceGroup2Instance, ResourceGroup2User, Users, Instance, InstanceTag
+from sql.models import ResourceGroup, ResourceGroup2Instance, ResourceGroup2User, Users, Instance
 from sql.utils.resource_group import user_instances
 from sql.utils.workflow_audit import Audit
 
@@ -54,7 +54,7 @@ def associated_objects(request):
     # 过滤搜索
     if search:
         rows_users = rows_users.filter(user__display__contains=search)
-        rows_instances = rows_instances.filter(instance__instance_name=search)
+        rows_instances = rows_instances.filter(instance__instance_name__contains=search)
     rows_users = rows_users.annotate(
         object_id=F('user_id'),
         object_type=Value(0, output_field=IntegerField()),
